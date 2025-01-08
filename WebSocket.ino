@@ -1,26 +1,13 @@
 #include <map>
-#include <L298NX2.h>  // For two motors instance at once
 #include <WiFi.h>
 #include <WebSocketsClient.h>
 
 /* PINs declaration */
 const int LED_PIN = 15;
 
-const int ENA_PIN = 13;  // OUT 1: ADC PINS (PMW PINS)
-const int IN1_PIN = 12;
-const int IN2_PIN = 14;
-const int ENB_PIN = 25;  // OUT 2: ADC PINS (PMW PINS)
-const int IN3_PIN = 26;
-const int IN4_PIN = 27;
-
-/* Components */
-L298NX2 motors = L298NX2(ENA_PIN, IN1_PIN, IN2_PIN, ENB_PIN, IN3_PIN, IN4_PIN);
-
 /* Connection Constants and Globals */
-#define WIFI_SSID "Sahan-Fiber-SLT"
-#define WIFI_PASSWORD "King7f2d!@#$"
-// #define WIFI_SSID = "Sahan's A54";
-// #define WIFI_PASSWORD = "Sahan123";
+#define WIFI_SSID = "Sahan's A54";
+#define WIFI_PASSWORD = "Sahan123";
 
 const char* serverAddress = "774e-2402-d000-8128-40d-65a3-4c09-28f0-ef8.ngrok-free.app";  // ngrok public URL (without "https://")
 const char* serverPath = "/ESP_APP/esp";                                                  // WebSocket endpoint
@@ -55,74 +42,6 @@ void initConfig() {
 
   pinMode(LED_PIN, OUTPUT);
   lightON();
-  setSpeed(255);
-
-  Serial.printf("ENA backward: IN1_PIN=%d, IN2_PIN=%d\n", digitalRead(IN1_PIN), digitalRead(IN2_PIN));
-  Serial.printf("ENA backward: IN1_PIN=%d, IN2_PIN=%d, ENA_PIN=%d\n", digitalRead(IN1_PIN), digitalRead(IN2_PIN), digitalRead(ENA_PIN));
-  Serial.printf("ENA backward: IN3_PIN=%d, IN4_PIN=%d, ENB_PIN=%d\n", digitalRead(IN3_PIN), digitalRead(IN4_PIN), digitalRead(ENB_PIN));
-  Serial.println(ENA_PIN);
-  Serial.println(ENB_PIN);
-  Serial.println(IN1_PIN);
-  Serial.println(IN2_PIN);
-  Serial.println(IN3_PIN);
-  Serial.println(IN4_PIN);
-  delay(1000);
-  testMotorABackward();
-  delay(3000);
-  motors.stop();
-  testMotorBBackward();
-  delay(3000);
-  motors.stop();
-  testMotorAForward();
-  delay(3000);
-  motors.stop();
-  testMotorBForward();
-  delay(3000);
-  motors.stop();
-}
-
-void testMotorABackward() {
-  pinMode(IN1_PIN, OUTPUT);
-  pinMode(IN2_PIN, OUTPUT);
-  pinMode(ENA_PIN, OUTPUT);
-
-  Serial.println("A Back");
-  digitalWrite(IN1_PIN, HIGH);  // Reverse direction
-  digitalWrite(IN2_PIN, LOW);
-  analogWrite(ENA_PIN, 255);  // Full speed
-}
-
-void testMotorBBackward() {
-  pinMode(IN3_PIN, OUTPUT);
-  pinMode(IN4_PIN, OUTPUT);
-  pinMode(ENB_PIN, OUTPUT);
-
-  Serial.println("B Back");
-  digitalWrite(IN3_PIN, HIGH);  // Reverse direction
-  digitalWrite(IN4_PIN, LOW);
-  analogWrite(ENB_PIN, 255);  // Full speed
-}
-
-void testMotorAForward() {
-  pinMode(IN1_PIN, OUTPUT);
-  pinMode(IN2_PIN, OUTPUT);
-  pinMode(ENA_PIN, OUTPUT);
-
-  Serial.println("A For");
-  digitalWrite(IN1_PIN, LOW);  // Reverse direction
-  digitalWrite(IN2_PIN, HIGH);
-  analogWrite(ENA_PIN, 255);  // Full speed
-}
-
-void testMotorBForward() {
-  pinMode(IN3_PIN, OUTPUT);
-  pinMode(IN4_PIN, OUTPUT);
-  pinMode(ENB_PIN, OUTPUT);
-
-  Serial.println("B For");
-  digitalWrite(IN3_PIN, LOW);  // Reverse direction
-  digitalWrite(IN4_PIN, HIGH);
-  analogWrite(ENB_PIN, 255);  // Full speed
 }
 
 void checkWebSocketConnection() {
@@ -200,30 +119,12 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
   }
 }
 
-/* Motors */
-void setSpeed(unsigned short speed) {
-  if (speed > 255) speed = 255;
-  motors.setSpeed(speed);
-}
-
-void checkMotorAction(unsigned long actionTime, unsigned long timeout = 2000) {
-  if ((motors.isMovingA() || motors.isMovingB()) && millis() - actionTime >= timeout) {
-    motors.stop();
-    Serial.println("Motors stopped due to timeout.");
-  }
-}
-
 /* Actions */
 typedef void (*CommandHandler)();
 
 std::map<String, CommandHandler> commandMap = {
   { "TURN_ON", runAction1 },
   { "TURN_OFF", runAction2 },
-  { "Action A", runAction3 },
-  { "Action B", runAction4 },
-  { "Action C", runAction5 },
-  { "Action D", runAction6 },
-  { "Action E", runAction7 },
 };
 
 void runCommand(String command) {
@@ -243,42 +144,6 @@ void runAction2() {
   lightOFF();
 }
 
-void runAction3() {
-  motors.forward();
-  Serial.println("Action A");
-  // checkMotorAction(millis(), 10 * 1000);
-}
-
-void runAction4() {
-  motors.backward();
-  Serial.println("Action B");
-  // checkMotorAction(millis(), 10 * 1000);
-}
-
-void runAction5() {
-  // checkMotorAction(millis(), 10);
-  Serial.println("Action C");
-  if (motors.isMovingA() || motors.isMovingB()) {
-    motors.stop();
-  }
-}
-
-void runAction6() {
-  /* Left */
-  motors.forwardB();
-  motors.backwardA();
-  Serial.println("Action D");
-  checkMotorAction(millis());
-}
-
-void runAction7() {
-  /* Right */
-  motors.forwardA();
-  motors.backwardB();
-  Serial.println("Action E");
-  checkMotorAction(millis());
-}
-
 /* Lights */
 void lightON() {
   Serial.println("Light ON");
@@ -288,16 +153,6 @@ void lightON() {
 void lightOFF() {
   Serial.println("Light OFF");
   digitalWrite(LED_PIN, LOW);
-}
-
-void indicateLight(int limit) {
-  static bool lightState = false;
-
-  for (int blinkCount = 0; blinkCount < 2 * limit; blinkCount++) {
-    lightState = !lightState;
-    digitalWrite(LED_PIN, lightState ? HIGH : LOW);
-    delay(200);
-  }
 }
 
 /* WiFi */
